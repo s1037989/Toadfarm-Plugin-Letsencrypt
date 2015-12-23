@@ -13,13 +13,14 @@ sub register {
 
   $config->{challenges} ||= '/tmp/letsencrypt/public_html';
   $config->{route} ||= '/.well-known/acme-challenge';
+  $config->{data} ||= 'challenges';
 
   $app->plugin('HeaderCondition');
   $app->routes->get($config->{route}.'/:challenge')->over(agent => qr{letsencrypt})->to(cb => sub {
     my $c = shift;
     my $challenge = $c->param('challenge');
     $c->app->log->debug("Let's Encrypt Verification: $challenge");
-    if ( my $challenges = data_section('main', 'challenges') ) {
+    if ( my $challenges = data_section('main', $config->{data}) ) {
       if ( my $found = ((grep { /^$challenge\t/ } split /\n+/, $challenges)[0]) ) {
         if ( my $response = ((split /\s+/, $found)[1]) ) {
           return $c->render(text => $response);
@@ -87,6 +88,9 @@ provide details for capturing the challenge / response that will be necessary:
 Simplist thing to do is copy and paste that.  Toadfarm::Plugin::Letsencrypt
 will pick up the verification request from letsencrypt and provide the correct
 challenge response in order to verify domain ownership.
+
+You can alternatively add the challenge / response pair to a challenges file,
+stored in your toadfarm script DATA section.
 
 Start your toadfarm with your new cert:
 
