@@ -44,7 +44,11 @@ __END__
 =head1 NAME
 
 Toadfarm::Plugin::Letsencrypt - Toadfarm Plugin to handle letsencrypt.org
-domain verifications.
+domain verifications.  Multi-domain support from Let's Encrypt is great for
+allowing each of your mounted apps to be configured as traditional virtual
+hosts where each app has its own unique FQDN.  A multi-domain cert from LE
+will allow Toadfarm to load with just one cert/key pair (which is all that
+it supports) and give TLS support to each mounted app.
 
 =head1 SYNOPSIS
 
@@ -68,10 +72,13 @@ Toadfarm::Plugin::Reload):
     "User-Agent" => qr{^(?:(?!GitHub-Hookshot)(?!letsencrypt).)*$},
   };
 
-Download letsencrypt.org
-Run it with ./letsencrypt-auto certonly -a manual -d cn1.domain.tld -d ...
-For each domain specified, letsenrypt will need to verify ownership and will
-provide details for capturing the challenge / response:
+Download letsencrypt.org to $HOME
+Run it with:
+
+  $ ./letsencrypt-auto certonly -a manual -d cn1.domain.tld -d ...
+
+For each domain specified, letsencrypt will need to verify ownership and will
+provide details for capturing the challenge / response that will be necessary:
 
   mkdir -p /tmp/letsencrypt/public_html/.well-known/acme-challenge
   cd /tmp/letsencrypt/public_html
@@ -80,6 +87,21 @@ provide details for capturing the challenge / response:
 Simplist thing to do is copy and paste that.  Toadfarm::Plugin::Letsencrypt
 will pick up the verification request from letsencrypt and provide the correct
 challenge response in order to verify domain ownership.
+
+Start your toadfarm with your new cert:
+
+  (In your toadfarm script)
+  start ["http://*:8080",
+"https://*:8443?cert=/etc/letsencrypt/live/cn1.domain.tld/fullchain.pem&key=/etc/letsencrypt/live/cn1.domain.tld/privkey.pem"];
+
+Make sure web requests are being directed to your Toadfarm:
+
+  $ tail -2 /etc/network/if-up.d/firewall 
+  iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to 8080
+  iptables -t nat -A PREROUTING -p tcp --dport 443 -j REDIRECT --to 8443
+  (Or setup vhosts with nginx or Apache)
+
+Test your new secure Toadfarm at L<https://www.ssllabs.com/index.html>.
 
 =head1 METHODS
 
